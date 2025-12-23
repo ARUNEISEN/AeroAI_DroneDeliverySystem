@@ -1,0 +1,42 @@
+#Python
+tensorflow
+numpy
+pandas
+opencv-python
+Pillow
+scikit-learn
+matplotlib
+seaborn
+jupyter
+ipykernel
+h5py
+scipy
+# Machine Learning
+statsmodels
+# Deep Learning
+tensorflow
+keras
+# Computer Vision
+opencv-python
+Pillow
+# NLP & LLMs
+nltk
+spacy
+transformers
+sentencepiece
+huggingface-hub
+langchain
+langchain-core
+langchain-community
+python-dotenv
+boto3
+botocore
+awscli
+s3fs
+requests
+fastapi
+uvicorn
+mysql-connector-python
+pymongo
+sqlalchemy
+
