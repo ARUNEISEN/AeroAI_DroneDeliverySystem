@@ -20,9 +20,13 @@ import csv
 import uuid
 import os
 import sys
+from dotenv import load_dotenv
 sys.path.append(os.path.abspath("."))
 
 from agents.orchestrator import route_query
+env_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\Source_Files\CloudVariables.env"
+load_dotenv(dotenv_path=env_path)
+
 
 
 
@@ -560,9 +564,10 @@ elif page == "Drone Detection":
                     aws_access_key_id = creds[headers[0]]
                     aws_secret_access_key = creds[headers[1]]
 
+
                 # Create S3 client
-                aws_region_name = "ap-south-1"
-                S3_BUCKET = "drone-user-upload-images"
+                aws_region_name = os.getenv("AES_REGION"),
+                S3_BUCKET = os.getenv("S3_BUCKET"),
                 s3_client = boto3.client(
                     's3',
                     aws_access_key_id=aws_access_key_id,
@@ -609,12 +614,11 @@ elif page == "Drone Detection":
                 # Step 3: Store Metadata in MySQL
                 # ------------------------
                
-
-                POSTGRES_HOST = "drone-meta-data.cr06kyms21zl.ap-south-1.rds.amazonaws.com"
-                POSTGRES_USER = "postgres"
-                POSTGRES_PASS = "2217raidar"
-                POSTGRES_DB = "postgres"
-                POSTGRES_PORT = 5432
+                POSTGRES_HOST = os.getenv("RDS_HOST")
+                POSTGRES_USER = os.getenv("RDS_USER")
+                POSTGRES_PASS = os.getenv("RDS_PASSWORD")
+                POSTGRES_DB = os.getenv("RDS_DB")
+                POSTGRES_PORT = os.getenv("RDS_PORT")
 
                 try:
                     conn = psycopg2.connect(
