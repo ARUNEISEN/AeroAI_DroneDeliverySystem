@@ -1,2 +1,30 @@
+# Virtual Environment
 venv/
+
+# Data
 Data/
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+*.env
+
+# ML Models
+*.pkl
+*.pt
+*.h5
+
+# YOLO runs
+runs/
+
+# Reports
+temp_reports/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
