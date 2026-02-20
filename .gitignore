@@ -13,6 +13,9 @@ __pycache__/
 
 # Ignore everything inside runs
 runs/*
+Source_Files/yolov8n.pt
+runs/detect/runs/train/drone_detection/weights/last.pt
+runs/detect/runs/train/drone_health_model/weights/last.pt
 
 # Allow specific YOLO best.pt files
 !runs/detect/
