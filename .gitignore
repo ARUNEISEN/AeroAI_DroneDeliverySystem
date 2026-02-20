@@ -11,11 +11,6 @@ __pycache__/
 # Environment variables
 *.env
 
-# ML Models
-*.pkl
-*.pt
-*.h5
-
 # Ignore all .pt files
 *.pt
 
