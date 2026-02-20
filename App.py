@@ -562,23 +562,9 @@ elif page == "Drone Detection":
                 # ------------------------
                 # Step 1: Upload Image to S3
                 # ------------------------
-
-                csv_path = "D:/Projects/Aero-AI_DroneDeliverySystem/Data/rootkey.csv"
-
-                with open(csv_path, 'r') as f:
-                    reader = csv.reader(f)
-                    headers = next(reader)
-                    print("CSV Headers:", headers)
-
-                # Read CSV
-                with open(csv_path, 'r') as f:
-                    reader = csv.DictReader(f)
-                    creds = next(reader)  # Read the first row
-                    aws_access_key_id = creds[headers[0]]
-                    aws_secret_access_key = creds[headers[1]]
-
-
                 # Create S3 client
+                aws_access_key_id = os.getenv("AWS_ACCESS_KEY")
+                aws_secret_access_key = os.getenv("AWS_SECRET_KEY")
                 aws_region_name = os.getenv("AES_REGION")
                 S3_BUCKET = os.getenv("S3_BUCKET")
                 s3_client = boto3.client(
