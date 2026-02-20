@@ -534,6 +534,7 @@ elif page == "Drone Detection":
     import boto3
     from dotenv import load_dotenv
     import psycopg2
+    import json
     import streamlit as st
 
     # ------------------------
@@ -541,11 +542,8 @@ elif page == "Drone Detection":
     # ------------------------
     load_dotenv()  # Only works if .env exists (local dev)
 
-    # ------------------------
-    # Page layout
-    # ------------------------
     st.markdown("## 🎯 Drone Type & Health Detection")
-    st.markdown("Upload an image, detect drone type, analyze health, and store results in AWS S3 + MySQL/PostgreSQL.")
+    st.markdown("Upload an image, detect drone type, analyze health, and store results in AWS S3 + PostgreSQL.")
     st.markdown("---")
 
     # ------------------------
@@ -555,17 +553,16 @@ elif page == "Drone Detection":
     health_model = load_drone_health_model()
 
     # ------------------------
-    # File upload
+    # File uploader
     # ------------------------
     uploaded_file = st.file_uploader(
         "Upload Drone Image",
         type=["png", "jpg", "jpeg"]
     )
 
-    user_id = "user123"  # Replace with actual login system
+    user_id = "user123"  # Replace with login system
 
     col1, col2 = st.columns(2)
-
     with col1:
         st.markdown("Input Image")
         if uploaded_file:
@@ -592,7 +589,6 @@ elif page == "Drone Detection":
 
                 try:
                     if aws_access_key_id and aws_secret_access_key:
-                        # Local: Use keys from .env
                         s3_client = boto3.client(
                             "s3",
                             aws_access_key_id=aws_access_key_id,
@@ -600,20 +596,19 @@ elif page == "Drone Detection":
                             region_name=aws_region_name
                         )
                     else:
-                        # EC2: Use IAM Role (no keys)
                         s3_client = boto3.client("s3", region_name=aws_region_name)
 
-                    # Debug credentials source
                     session = boto3.Session()
                     creds = session.get_credentials()
-                    st.info(f"Using AWS credentials from: {creds.method}")
+                    cred_source = creds.method if creds else "No credentials found"
+                    st.info(f"Using AWS credentials from: {cred_source}")
 
                 except Exception as e:
                     st.error(f"S3 client initialization failed: {e}")
                     s3_client = None
 
                 # ------------------------
-                # Step 2: Upload Image to S3
+                # Step 2: Upload image to S3
                 # ------------------------
                 if s3_client and S3_BUCKET:
                     timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
@@ -632,7 +627,6 @@ elif page == "Drone Detection":
                         st.error(f"Error uploading to S3: {e}")
                         s3_url = None
 
-                    # Remove temp file
                     os.remove(temp_file_path)
                 else:
                     st.warning("S3 upload skipped: Missing credentials or bucket")
@@ -658,16 +652,29 @@ elif page == "Drone Detection":
                     st.image(cropped, caption="Detected Drone (Cropped)", width="stretch")
 
                 # ------------------------
-                # Step 4: Store Metadata in PostgreSQL
+                # Step 4: PostgreSQL metadata via Secrets Manager on EC2
                 # ------------------------
+                RDS_SECRET_NAME = os.getenv("RDS_SECRET_NAME")  # e.g., "drone-app-db"
                 POSTGRES_HOST = os.getenv("RDS_HOST")
                 POSTGRES_USER = os.getenv("RDS_USER")
                 POSTGRES_PASS = os.getenv("RDS_PASSWORD")
                 POSTGRES_DB = os.getenv("RDS_DB")
                 POSTGRES_PORT = int(os.getenv("RDS_PORT", 5432))
 
-                if all([POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASS, POSTGRES_DB]):
-                    try:
+                try:
+                    if RDS_SECRET_NAME:
+                        # EC2 production: fetch from Secrets Manager
+                        session = boto3.session.Session()
+                        client = session.client(service_name="secretsmanager", region_name=aws_region_name)
+                        secret_value = client.get_secret_value(SecretId=RDS_SECRET_NAME)
+                        secrets = json.loads(secret_value["SecretString"])
+                        POSTGRES_HOST = secrets["host"]
+                        POSTGRES_USER = secrets["username"]
+                        POSTGRES_PASS = secrets["password"]
+                        POSTGRES_DB = secrets["dbname"]
+                        POSTGRES_PORT = int(secrets.get("port", 5432))
+
+                    if all([POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASS, POSTGRES_DB]):
                         conn = psycopg2.connect(
                             host=POSTGRES_HOST,
                             user=POSTGRES_USER,
@@ -723,13 +730,13 @@ elif page == "Drone Detection":
                         conn.commit()
                         cursor.close()
                         conn.close()
-
                         st.success("Metadata stored successfully in PostgreSQL!")
 
-                    except Exception as e:
-                        st.error(f"Error storing metadata: {e}")
-                else:
-                    st.warning("PostgreSQL metadata storage skipped: Missing DB credentials")
+                    else:
+                        st.warning("PostgreSQL metadata storage skipped: Missing DB credentials")
+
+                except Exception as e:
+                    st.error(f"Error storing metadata: {e}")
 # =========================================
 # AI CHATBOT PAGE (CLEAN ARCHITECTURE)
 # =========================================
