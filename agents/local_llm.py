@@ -1,10 +1,18 @@
 import os
 import requests
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def ask_llm(messages):
-    
+
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+    if not GROQ_API_KEY:
+        return "Groq API Key not found. Check .env file."
+
+    # 🔥 AUTO-CONVERT STRING TO MESSAGE FORMAT
+    if isinstance(messages, str):
+        messages = [{"role": "user", "content": messages}]
+
     url = "https://api.groq.com/openai/v1/chat/completions"
 
     headers = {
@@ -14,17 +22,18 @@ def ask_llm(messages):
 
     payload = {
         "model": "llama-3.1-8b-instant",
-        "messages": messages
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are Aero AI Assistant for drone AI system management. Be professional, concise, and helpful."
+            }
+        ] + messages
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        data = response.json()
+    response = requests.post(url, headers=headers, json=payload)
+    data = response.json()
 
-        if "choices" in data:
-            return data["choices"][0]["message"]["content"]
-        else:
-            return f"Groq API Error: {data}"
-
-    except Exception as e:
-        return f"LLM Error: {str(e)}"
+    if "choices" in data:
+        return data["choices"][0]["message"]["content"]
+    else:
+        return f"Groq API Error: {data}"

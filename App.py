@@ -2,7 +2,9 @@
 # Aero AI - Drone Delivery System
 # Streamlit Application
 # =========================================
-
+from dotenv import load_dotenv
+env_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\Source_Files\CloudVariables.env"
+load_dotenv(dotenv_path=env_path)
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -20,12 +22,10 @@ import csv
 import uuid
 import os
 import sys
-from dotenv import load_dotenv
 sys.path.append(os.path.abspath("."))
 
 from agents.orchestrator import route_query
-env_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\Source_Files\CloudVariables.env"
-load_dotenv(dotenv_path=env_path)
+
 
 
 
