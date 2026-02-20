@@ -3,9 +3,9 @@
 # Streamlit Application
 # =========================================
 from dotenv import load_dotenv
-env_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\Source_Files\CloudVariables.env"
-load_dotenv(dotenv_path=env_path)
+load_dotenv()
 import streamlit as st
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import time
@@ -125,15 +125,20 @@ st.markdown(
 # YOLO MODEL UTILITIES
 # =========================================
 
+
+
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "Model"
+
 @st.cache_resource
 def load_drone_type_model():
-    model_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\runs\detect\runs\train\drone_detection\weights\best.pt"
-    return YOLO(model_path)
+    model_path = MODEL_DIR / "drone_detection.pt"
+    return YOLO(str(model_path))
 
 @st.cache_resource
 def load_drone_health_model():
-    model_path = r"D:\Projects\Aero-AI_DroneDeliverySystem\runs\detect\runs\train\drone_health_model\weights\best.pt"
-    return YOLO(model_path)
+    model_path = MODEL_DIR / "drone_health.pt"
+    return YOLO(str(model_path))
 
 DRONE_TYPES = ["fixed_wing", "hybrid", "multi_rotor", "single_rotor"]
 HEALTH_CLASSES = ["healthy", "missing_part", "propeller_crack", "wing_damage"]
