@@ -526,20 +526,43 @@ elif page == "ETA Prediction":
 
 
 elif page == "Drone Detection":
+    import os
+    import uuid
+    import numpy as np
+    from datetime import datetime
+    from PIL import Image
+    import boto3
+    from dotenv import load_dotenv
+    import psycopg2
+    import streamlit as st
+
+    # ------------------------
+    # Load .env locally
+    # ------------------------
+    load_dotenv()  # Only works if .env exists (local dev)
+
+    # ------------------------
+    # Page layout
+    # ------------------------
     st.markdown("## 🎯 Drone Type & Health Detection")
-    st.markdown("Upload an image, detect drone type, analyze health, and store results in AWS S3 + MySQL.")
+    st.markdown("Upload an image, detect drone type, analyze health, and store results in AWS S3 + MySQL/PostgreSQL.")
     st.markdown("---")
 
+    # ------------------------
+    # Load models
+    # ------------------------
     type_model = load_drone_type_model()
     health_model = load_drone_health_model()
 
+    # ------------------------
+    # File upload
+    # ------------------------
     uploaded_file = st.file_uploader(
         "Upload Drone Image",
         type=["png", "jpg", "jpeg"]
     )
 
-    # User ID simulation (replace with login/user system)
-    user_id = "user123"
+    user_id = "user123"  # Replace with actual login system
 
     col1, col2 = st.columns(2)
 
@@ -560,38 +583,63 @@ elif page == "Drone Detection":
             with st.spinner("Processing drone image..."):
 
                 # ------------------------
-                # Step 1: Upload Image to S3
+                # Step 1: Setup S3 client
                 # ------------------------
-                # Create S3 client
+                S3_BUCKET = os.getenv("S3_BUCKET")
+                aws_region_name = os.getenv("AES_REGION", "ap-south-1")
                 aws_access_key_id = os.getenv("AWS_ACCESS_KEY")
                 aws_secret_access_key = os.getenv("AWS_SECRET_KEY")
-                aws_region_name = os.getenv("AES_REGION")
-                S3_BUCKET = os.getenv("S3_BUCKET")
-                s3_client = boto3.client(
-                    's3',
-                    aws_access_key_id=aws_access_key_id,
-                    aws_secret_access_key=aws_secret_access_key,
-                    region_name=aws_region_name
-                )
-                # Generate unique S3 key
-                timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-                unique_id = str(uuid.uuid4())[:8]
-                file_ext = uploaded_file.name.split(".")[-1]
-                s3_key = f"uploads/{timestamp}_{user_id}_{unique_id}.{file_ext}"
 
-                # Save temp file locally to upload
-                temp_file_path = f"temp_{unique_id}.{file_ext}"
-                input_image.save(temp_file_path)
+                try:
+                    if aws_access_key_id and aws_secret_access_key:
+                        # Local: Use keys from .env
+                        s3_client = boto3.client(
+                            "s3",
+                            aws_access_key_id=aws_access_key_id,
+                            aws_secret_access_key=aws_secret_access_key,
+                            region_name=aws_region_name
+                        )
+                    else:
+                        # EC2: Use IAM Role (no keys)
+                        s3_client = boto3.client("s3", region_name=aws_region_name)
 
-                # Upload to S3
-                s3_client.upload_file(temp_file_path, S3_BUCKET, s3_key)
-                s3_url = f"https://{S3_BUCKET}.s3.{aws_region_name}.amazonaws.com/{s3_key}"
+                    # Debug credentials source
+                    session = boto3.Session()
+                    creds = session.get_credentials()
+                    st.info(f"Using AWS credentials from: {creds.method}")
 
-                # Remove temp file
-                os.remove(temp_file_path)
+                except Exception as e:
+                    st.error(f"S3 client initialization failed: {e}")
+                    s3_client = None
 
                 # ------------------------
-                # Step 2: YOLO Detection
+                # Step 2: Upload Image to S3
+                # ------------------------
+                if s3_client and S3_BUCKET:
+                    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+                    unique_id = str(uuid.uuid4())[:8]
+                    file_ext = uploaded_file.name.split(".")[-1]
+                    s3_key = f"uploads/{timestamp}_{user_id}_{unique_id}.{file_ext}"
+
+                    temp_file_path = f"temp_{unique_id}.{file_ext}"
+                    input_image.save(temp_file_path)
+
+                    try:
+                        s3_client.upload_file(temp_file_path, S3_BUCKET, s3_key)
+                        s3_url = f"https://{S3_BUCKET}.s3.{aws_region_name}.amazonaws.com/{s3_key}"
+                        st.success("✅ Image uploaded to S3")
+                    except Exception as e:
+                        st.error(f"Error uploading to S3: {e}")
+                        s3_url = None
+
+                    # Remove temp file
+                    os.remove(temp_file_path)
+                else:
+                    st.warning("S3 upload skipped: Missing credentials or bucket")
+                    s3_url = None
+
+                # ------------------------
+                # Step 3: YOLO Detection
                 # ------------------------
                 drone_type, type_conf, cropped = detect_drone_type_and_crop(type_model, image_np)
 
@@ -610,79 +658,78 @@ elif page == "Drone Detection":
                     st.image(cropped, caption="Detected Drone (Cropped)", width="stretch")
 
                 # ------------------------
-                # Step 3: Store Metadata in MySQL
+                # Step 4: Store Metadata in PostgreSQL
                 # ------------------------
-               
                 POSTGRES_HOST = os.getenv("RDS_HOST")
                 POSTGRES_USER = os.getenv("RDS_USER")
                 POSTGRES_PASS = os.getenv("RDS_PASSWORD")
                 POSTGRES_DB = os.getenv("RDS_DB")
-                POSTGRES_PORT = os.getenv("RDS_PORT")
+                POSTGRES_PORT = int(os.getenv("RDS_PORT", 5432))
 
-                try:
-                    conn = psycopg2.connect(
-                        host=POSTGRES_HOST,
-                        user=POSTGRES_USER,
-                        password=POSTGRES_PASS,
-                        database=POSTGRES_DB,
-                        port=POSTGRES_PORT
-                    )
-                    cursor = conn.cursor()
-                    create_table_query = """
-                    CREATE TABLE IF NOT EXISTS drone_image_metadata (
-                        id SERIAL PRIMARY KEY,
-                        user_id VARCHAR(255),
-                        s3_path TEXT,
-                        drone_type VARCHAR(50),
-                        drone_type_conf FLOAT,
-                        health_status VARCHAR(50),
-                        health_conf FLOAT,
-                        uploaded_at TIMESTAMP,
-                        processed_at TIMESTAMP,
-                        image_size_bytes BIGINT,
-                        image_format VARCHAR(10),
-                        model_version VARCHAR(100)
-                    );
-                    """
-                    cursor.execute(create_table_query)
-                    conn.commit()
+                if all([POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASS, POSTGRES_DB]):
+                    try:
+                        conn = psycopg2.connect(
+                            host=POSTGRES_HOST,
+                            user=POSTGRES_USER,
+                            password=POSTGRES_PASS,
+                            database=POSTGRES_DB,
+                            port=POSTGRES_PORT
+                        )
+                        cursor = conn.cursor()
+                        create_table_query = """
+                        CREATE TABLE IF NOT EXISTS drone_image_metadata (
+                            id SERIAL PRIMARY KEY,
+                            user_id VARCHAR(255),
+                            s3_path TEXT,
+                            drone_type VARCHAR(50),
+                            drone_type_conf FLOAT,
+                            health_status VARCHAR(50),
+                            health_conf FLOAT,
+                            uploaded_at TIMESTAMP,
+                            processed_at TIMESTAMP,
+                            image_size_bytes BIGINT,
+                            image_format VARCHAR(10),
+                            model_version VARCHAR(100)
+                        );
+                        """
+                        cursor.execute(create_table_query)
+                        conn.commit()
 
-                    uploaded_at = datetime.now()
-                    processed_at = datetime.now()
-                    image_size_bytes = uploaded_file.size
-                    model_version_type = "YOLOv8-DroneType"
-                    model_version_health = "YOLOv8-DroneHealth"
+                        uploaded_at = datetime.now()
+                        processed_at = datetime.now()
+                        image_size_bytes = uploaded_file.size
+                        model_version_type = "YOLOv8-DroneType"
+                        model_version_health = "YOLOv8-DroneHealth"
 
-                    insert_query = """
-                    INSERT INTO drone_image_metadata
-                    (user_id, s3_path, drone_type, drone_type_conf, health_status, health_conf,
-                     uploaded_at, processed_at, image_size_bytes, image_format, model_version)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """
+                        insert_query = """
+                        INSERT INTO drone_image_metadata
+                        (user_id, s3_path, drone_type, drone_type_conf, health_status, health_conf,
+                         uploaded_at, processed_at, image_size_bytes, image_format, model_version)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """
+                        cursor.execute(insert_query, (
+                            user_id,
+                            s3_url,
+                            drone_type,
+                            type_conf,
+                            health_status,
+                            health_conf,
+                            uploaded_at,
+                            processed_at,
+                            image_size_bytes,
+                            file_ext.lower(),
+                            f"{model_version_type}/{model_version_health}"
+                        ))
+                        conn.commit()
+                        cursor.close()
+                        conn.close()
 
-                    cursor.execute(insert_query, (
-                        user_id,
-                        s3_url,
-                        drone_type,
-                        type_conf,
-                        health_status,
-                        health_conf,
-                        uploaded_at,
-                        processed_at,
-                        image_size_bytes,
-                        file_ext.lower(),
-                        f"{model_version_type}/{model_version_health}"
-                    ))
+                        st.success("Metadata stored successfully in PostgreSQL!")
 
-                    conn.commit()
-                    cursor.close()
-                    conn.close()
-
-                    st.success("Metadata stored successfully in PostgreSQL & Image uploaded to S3!")
-
-                except Exception as e:
-                    st.error(f"Error storing metadata: {e}")
-
+                    except Exception as e:
+                        st.error(f"Error storing metadata: {e}")
+                else:
+                    st.warning("PostgreSQL metadata storage skipped: Missing DB credentials")
 # =========================================
 # AI CHATBOT PAGE (CLEAN ARCHITECTURE)
 # =========================================
