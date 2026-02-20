@@ -16,9 +16,23 @@ __pycache__/
 *.pt
 *.h5
 
-# YOLO runs
-runs/
+# Ignore all .pt files
+*.pt
 
+# Ignore everything inside runs
+runs/*
+
+# Allow specific YOLO best.pt files
+!runs/detect/
+!runs/detect/runs/
+!runs/detect/runs/train/
+!runs/detect/runs/train/drone_detection/
+!runs/detect/runs/train/drone_detection/weights/
+!runs/detect/runs/train/drone_detection/weights/best.pt
+
+!runs/detect/runs/train/drone_health_model/
+!runs/detect/runs/train/drone_health_model/weights/
+!runs/detect/runs/train/drone_health_model/weights/best.pt
 # Reports
 temp_reports/
 

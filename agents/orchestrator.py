@@ -27,20 +27,27 @@ def route_query(user_query, memory=None):
 
 def classify_intent(user_query):
 
-    prompt = f"""
-    Classify the user request:
-    DATA -> database query
-    REPORT -> generate report
-    EMAIL -> send email
-    GENERAL -> greeting or normal conversation
+    messages = [
+        {
+            "role": "system",
+            "content": """
+            Classify the user request into ONE word only:
+            DATA -> database query
+            REPORT -> generate report
+            EMAIL -> send email
+            GENERAL -> greeting or normal conversation
 
-    Only return one word.
-
-    Query: {user_query}
-    """
+            Respond with only one word.
+            """
+        },
+        {
+            "role": "user",
+            "content": user_query
+        }
+    ]
 
     try:
-        response = ask_llm(prompt)
+        response = ask_llm(messages)
         return response.strip().upper()
     except:
         return "GENERAL"
@@ -52,10 +59,18 @@ def classify_intent(user_query):
 
 def handle_general(user_query, memory):
 
-    if memory:
-        memory.add("user", user_query)
-        response = ask_llm(memory.get_context())
-        memory.add("assistant", response)
+    if memory is not None:
+
+        # Add user message
+        memory.append({"role": "user", "content": user_query})
+
+        # Send full conversation to LLM
+        response = ask_llm(memory)
+
+        # Add assistant reply
+        memory.append({"role": "assistant", "content": response})
+
         return response
 
-    return ask_llm(user_query)
+    # If no memory provided
+    return ask_llm([{"role": "user", "content": user_query}])
