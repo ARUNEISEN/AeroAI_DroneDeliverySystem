@@ -295,7 +295,7 @@ if page == "Home":
     # Technical Stack
     st.markdown("### 🛠️ Technical Stack")
     
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5= st.columns(5)
     
     with col1:
         st.markdown("""
@@ -325,6 +325,14 @@ if page == "Home":
         st.markdown("""
         <div class="metric-card">
             <h4>🎨 Streamlit</h4>
+            <p>Web Interface</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown("""
+        <div class="metric-card">
+            <h4>Natural Language Processing</h4>
             <p>Web Interface</p>
         </div>
         """, unsafe_allow_html=True)
@@ -566,8 +574,8 @@ elif page == "Drone Detection":
 
 
                 # Create S3 client
-                aws_region_name = os.getenv("AES_REGION"),
-                S3_BUCKET = os.getenv("S3_BUCKET"),
+                aws_region_name = os.getenv("AES_REGION")
+                S3_BUCKET = os.getenv("S3_BUCKET")
                 s3_client = boto3.client(
                     's3',
                     aws_access_key_id=aws_access_key_id,
@@ -711,7 +719,6 @@ elif page == "AI Chatbot":
     • Damage / missing part count  
     • Generate performance reports  
     • Send reports via email  
-    • ETA & detection insights  
 
     How can I assist you today?"""
         st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
@@ -772,87 +779,96 @@ elif page == "AI Chatbot":
 
 # =================================
 #  ABOUT ME PAGE
-# ========================================
+# =================================
 elif page == "About Me":
-    st.markdown("## 👤 About Me")
-    
+
+    st.set_page_config(page_title="About Me | Arunkumar S", layout="wide")
+
+    # -------------------------------
+    # Header Section
+    # -------------------------------
+    st.markdown("""
+    # 👋 Hi, I'm Arunkumar S
+    ### Data Scientist | Machine Learning Engineer | Ex-QA Automation Engineer
+    """)
+
     st.markdown("---")
-    
-    col1, col2 = st.columns([1, 2])
-    
+
+    # -------------------------------
+    # About Me Section
+    # -------------------------------
+    st.markdown("## 🚀 About Me")
+
+    st.write("""
+    I am a Data Scientist and Machine Learning Engineer with 3.7+ years of experience in QA Automation,
+    bringing a strong engineering foundation into AI-driven problem solving.
+
+    My background in software testing has strengthened my analytical thinking,
+    debugging expertise, and ability to build reliable, production-ready systems.
+    I specialize in designing and deploying Machine Learning and Computer Vision solutions
+    that transform data into actionable business insights.
+    """)
+
+    st.write("""
+    I have hands-on experience in:
+    - Building ML models (Regression, Clustering, PCA)
+    - Developing end-to-end data pipelines
+    - Deploying AI applications using Streamlit
+    - Cloud integration with AWS
+    - Data analytics using SQL, Power BI
+    """)
+
+    st.markdown("---")
+
+    # -------------------------------
+    # Core Strengths Section
+    # -------------------------------
+    st.markdown("## 💡 Core Strengths")
+
+    col1, col2 = st.columns(2)
+
     with col1:
         st.markdown("""
-        <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 16px; color: white;">
-            <div style="font-size: 5rem; margin-bottom: 1rem;">👨‍💻</div>
-            <h2>Developer</h2>
-            <p>AI/ML Engineer</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("### 🔗 Connect")
-        st.markdown("[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com)")
-        st.markdown("[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com)")
-        st.markdown("[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:email@example.com)")
-    
+        - Machine Learning Model Development  
+        - Data Cleaning & EDA  
+        - Feature Engineering  
+        - Model Evaluation & Optimization  
+        """)
+
     with col2:
-        st.markdown("### 👋 Hello!")
         st.markdown("""
-        I'm a passionate AI/ML Engineer specializing in computer vision and predictive analytics. 
-        The Aero AI project showcases my expertise in building end-to-end machine learning solutions 
-        for real-world applications in drone delivery systems.
+        - Automation Engineering Mindset  
+        - Backend Data Validation (SQL, MongoDB)  
+        - Cloud-based AI Deployments  
+        - Business-Focused Data Storytelling  
         """)
-        
-        st.markdown("### 🛠️ Technical Skills")
-        
-        skills_col1, skills_col2 = st.columns(2)
-        
-        with skills_col1:
-            st.markdown("**Programming Languages**")
-            st.progress(0.95, text="Python")
-            st.progress(0.80, text="SQL")
-            st.progress(0.70, text="JavaScript")
-            
-            st.markdown("**ML/DL Frameworks**")
-            st.progress(0.90, text="Scikit-learn")
-            st.progress(0.85, text="TensorFlow")
-            st.progress(0.85, text="PyTorch")
-        
-        with skills_col2:
-            st.markdown("**Computer Vision**")
-            st.progress(0.90, text="YOLO")
-            st.progress(0.85, text="OpenCV")
-            st.progress(0.80, text="Detectron2")
-            
-            st.markdown("**Tools & Platforms**")
-            st.progress(0.90, text="Streamlit")
-            st.progress(0.85, text="Docker")
-            st.progress(0.80, text="AWS")
-        
-        st.markdown("---")
-        
-        st.markdown("### 🚀 About This Project")
-        st.markdown("""
-        **Aero AI - Drone Delivery Intelligence System** is a comprehensive solution that combines:
-        
-        - **Machine Learning**: Gradient Boosting for accurate ETA predictions
-        - **Computer Vision**: YOLO-based drone detection and damage assessment
-        - **Feature Engineering**: Physics-based features for domain-specific accuracy
-        - **User Interface**: Interactive Streamlit dashboard for easy interaction
-        
-        The project demonstrates end-to-end ML pipeline development, from data preprocessing 
-        and feature engineering to model deployment and user interface design.
-        """)
-        
-        st.markdown("### 📊 Project Highlights")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Models Trained", "5+")
-        with col2:
-            st.metric("Features Engineered", "15+")
-        with col3:
-            st.metric("Accuracy Improvement", "45%")
+
+    st.markdown("---")
+
+    # -------------------------------
+    # Career Vision Section
+    # -------------------------------
+    st.markdown("## 🎯 Career Vision")
+
+    st.write("""
+    My goal is to build scalable AI systems that bridge the gap between experimentation
+    and real-world production environments. I aim to contribute to high-impact,
+    data-driven products in global technology organizations.
+    """)
+
+    st.markdown("---")
+
+    # -------------------------------
+    # Contact Section
+    # -------------------------------
+    st.markdown("## 📬 Connect With Me")
+
+    st.write("📧 Email: arunkumarse315@gmail.com")
+    st.write("📍 Location: India")
+    st.write("🔗 GitHub: https://github.com/ARUNEISEN")
+
+    st.success("Thank you for visiting my portfolio!")
+
 
 # =========================================
 # Footer

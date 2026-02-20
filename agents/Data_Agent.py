@@ -26,7 +26,7 @@ import re
 
 def generate_sql_from_llm(user_query):
     prompt = f"""
-    You are an expert PostgreSQL query generator.
+    It is an expert PostgreSQL query generator.
 
     Generate ONLY a SELECT SQL query.
 
