@@ -11,9 +11,6 @@ __pycache__/
 # Environment variables
 *.env
 
-# Ignore all .pt files
-*.pt
-
 # Ignore everything inside runs
 runs/*
 
