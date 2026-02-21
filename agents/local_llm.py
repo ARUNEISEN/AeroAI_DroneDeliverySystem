@@ -1,7 +1,8 @@
-import os
-import requests
 from dotenv import load_dotenv
 load_dotenv()
+import os
+import requests
+
 
 
 def ask_llm(messages):

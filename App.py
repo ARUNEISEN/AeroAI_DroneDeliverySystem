@@ -2,8 +2,12 @@
 # Aero AI - Drone Delivery System
 # Streamlit Application
 # =========================================
+import os
 from dotenv import load_dotenv
-load_dotenv()
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / "CloudVariables.env")
 import streamlit as st
 from pathlib import Path
 import pandas as pd
@@ -20,14 +24,49 @@ import uuid
 import os
 import csv
 import uuid
-import os
+
 import sys
 sys.path.append(os.path.abspath("."))
 
 from agents.orchestrator import route_query
 
+import boto3
 
+# =====================================================
+# AWS Credential Safe Loader (Production Level)
+# =====================================================
 
+def get_aws_session():
+
+    try:
+        # Try environment credentials first (.env)
+        session = boto3.Session(
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_KEY"),
+            region_name=os.getenv("AES_REGION", "ap-south-1")
+        )
+
+        creds = session.get_credentials()
+
+        if creds:
+            st.info(f"AWS Credentials Source: Local .env")
+
+        return session
+
+    except Exception:
+
+        try:
+            # Fallback → IAM Role (EC2)
+            session = boto3.Session()
+            creds = session.get_credentials()
+
+            if creds:
+                st.info("AWS Credentials Source: IAM Role")
+
+            return session
+
+        except:
+            return None
 
 
 # =========================================
@@ -524,219 +563,222 @@ elif page == "ETA Prediction":
 # DRONE DETECTION PAGE WITH S3 + MySQL
 # =========================================
 
-
 elif page == "Drone Detection":
-    import os
-    import uuid
-    import numpy as np
-    from datetime import datetime
-    from PIL import Image
-    import boto3
-    from dotenv import load_dotenv
-    import psycopg2
-    import json
-    import streamlit as st
-
-    # ------------------------
-    # Load .env locally
-    # ------------------------
-    load_dotenv()  # Only works if .env exists (local dev)
 
     st.markdown("## 🎯 Drone Type & Health Detection")
-    st.markdown("Upload an image, detect drone type, analyze health, and store results in AWS S3 + PostgreSQL.")
     st.markdown("---")
+  
+    # =====================================================
+    # S3 Client Loader
+    # =====================================================
 
-    # ------------------------
-    # Load models
-    # ------------------------
+    def get_s3_client():
+
+        session = get_aws_session()
+
+        if not session:
+            return None
+
+        return session.client("s3")
+
+    # =====================================================
+    # PostgreSQL Connection Loader
+    # =====================================================
+
+    def get_postgres_connection():
+
+        host = os.getenv("RDS_HOST")
+        user = os.getenv("RDS_USER")
+        password = os.getenv("RDS_PASSWORD")
+        db = os.getenv("RDS_DB")
+        port = os.getenv("RDS_PORT", 5432)
+
+        if all([host, user, password, db]):
+
+            try:
+                return psycopg2.connect(
+                    host=host,
+                    user=user,
+                    password=password,
+                    database=db,
+                    port=port
+                )
+
+            except Exception as e:
+                st.error(f"DB Connection Error: {e}")
+
+        return None
+
+    # =====================================================
+    # Load Models
+    # =====================================================
+
     type_model = load_drone_type_model()
     health_model = load_drone_health_model()
 
-    # ------------------------
-    # File uploader
-    # ------------------------
+    # =====================================================
+    # Upload UI
+    # =====================================================
+
     uploaded_file = st.file_uploader(
         "Upload Drone Image",
         type=["png", "jpg", "jpeg"]
     )
 
-    user_id = "user123"  # Replace with login system
+    user_id = "user123"
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("Input Image")
-        if uploaded_file:
-            input_image = Image.open(uploaded_file).convert("RGB")
-            image_np = np.array(input_image)
-            st.image(input_image, width="stretch")
-        else:
-            st.info("Upload a drone image")
+    if uploaded_file:
 
-    with col2:
-        st.markdown("Analysis Results")
+        input_image = Image.open(uploaded_file).convert("RGB")
+        image_np = np.array(input_image)
 
-        if uploaded_file and st.button("🚀 Analyze & Store", width="stretch"):
+        col1, col2 = st.columns(2)
 
-            with st.spinner("Processing drone image..."):
+        with col1:
+            st.image(input_image, caption="Input Image", width=400)
 
-                # ------------------------
-                # Step 1: Setup S3 client
-                # ------------------------
-                S3_BUCKET = os.getenv("S3_BUCKET")
-                aws_region_name = os.getenv("AES_REGION", "ap-south-1")
-                aws_access_key_id = os.getenv("AWS_ACCESS_KEY")
-                aws_secret_access_key = os.getenv("AWS_SECRET_KEY")
+        with col2:
 
-                try:
-                    if aws_access_key_id and aws_secret_access_key:
-                        s3_client = boto3.client(
-                            "s3",
-                            aws_access_key_id=aws_access_key_id,
-                            aws_secret_access_key=aws_secret_access_key,
-                            region_name=aws_region_name
-                        )
-                    else:
-                        s3_client = boto3.client("s3", region_name=aws_region_name)
+            if st.button("🚀 Analyze & Store"):
 
-                    session = boto3.Session()
-                    creds = session.get_credentials()
-                    cred_source = creds.method if creds else "No credentials found"
-                    st.info(f"Using AWS credentials from: {cred_source}")
+                with st.spinner("Processing..."):
 
-                except Exception as e:
-                    st.error(f"S3 client initialization failed: {e}")
+                    # ================================
+                    # S3 Upload (Production Safe)
+                    # ================================
+
+                    session = get_aws_session()
+
                     s3_client = None
-
-                # ------------------------
-                # Step 2: Upload image to S3
-                # ------------------------
-                if s3_client and S3_BUCKET:
-                    timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-                    unique_id = str(uuid.uuid4())[:8]
-                    file_ext = uploaded_file.name.split(".")[-1]
-                    s3_key = f"uploads/{timestamp}_{user_id}_{unique_id}.{file_ext}"
-
-                    temp_file_path = f"temp_{unique_id}.{file_ext}"
-                    input_image.save(temp_file_path)
-
-                    try:
-                        s3_client.upload_file(temp_file_path, S3_BUCKET, s3_key)
-                        s3_url = f"https://{S3_BUCKET}.s3.{aws_region_name}.amazonaws.com/{s3_key}"
-                        st.success("✅ Image uploaded to S3")
-                    except Exception as e:
-                        st.error(f"Error uploading to S3: {e}")
-                        s3_url = None
-
-                    os.remove(temp_file_path)
-                else:
-                    st.warning("S3 upload skipped: Missing credentials or bucket")
                     s3_url = None
 
-                # ------------------------
-                # Step 3: YOLO Detection
-                # ------------------------
-                drone_type, type_conf, cropped = detect_drone_type_and_crop(type_model, image_np)
+                    bucket = os.getenv("S3_BUCKET")
+                    region = os.getenv("AES_REGION", "ap-south-1")
 
-                if drone_type is None:
-                    st.error("No drone detected")
-                    drone_type, type_conf = None, None
-                    health_status, health_conf = None, None
-                    cropped = None
-                else:
-                    health_status, health_conf = detect_drone_health(health_model, cropped)
+                    if session and bucket:
+
+                        try:
+                            s3_client = session.client("s3")
+
+                            timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+                            uid = str(uuid.uuid4())[:8]
+
+                            ext = uploaded_file.name.split(".")[-1]
+
+                            key = f"uploads/{timestamp}_{uid}.{ext}"
+
+                            temp_path = f"temp_{uid}.{ext}"
+                            input_image.save(temp_path)
+
+                            s3_client.upload_file(
+                                temp_path,
+                                bucket,
+                                key
+                            )
+
+                            s3_url = f"https://{bucket}.s3.{region}.amazonaws.com/{key}"
+
+                            if os.path.exists(temp_path):
+                                os.remove(temp_path)
+
+                            st.success("✅ Image uploaded to S3")
+
+                        except Exception as e:
+                            st.error(f"S3 Upload Error: {e}")
+
+                    else:
+                        st.warning("S3 Upload Skipped")
+
+                    # =========================================
+                    # YOLO Detection
+                    # =========================================
+
+                    drone_type, type_conf, cropped = detect_drone_type_and_crop(
+                        type_model,
+                        image_np
+                    )
+
+                    if drone_type is None:
+                        st.error("No drone detected")
+                        st.stop()
+
+                    health_status, health_conf = detect_drone_health(
+                        health_model,
+                        cropped
+                    )
+
                     st.success("✅ Analysis Complete")
+
                     st.metric("Drone Type", drone_type)
                     st.metric("Type Confidence", f"{type_conf*100:.2f}%")
                     st.metric("Health Status", health_status)
                     st.metric("Health Confidence", f"{health_conf*100:.2f}%")
-                    st.image(cropped, caption="Detected Drone (Cropped)", width="stretch")
 
-                # ------------------------
-                # Step 4: PostgreSQL metadata via Secrets Manager on EC2
-                # ------------------------
-                RDS_SECRET_NAME = os.getenv("RDS_SECRET_NAME")  # e.g., "drone-app-db"
-                POSTGRES_HOST = os.getenv("RDS_HOST")
-                POSTGRES_USER = os.getenv("RDS_USER")
-                POSTGRES_PASS = os.getenv("RDS_PASSWORD")
-                POSTGRES_DB = os.getenv("RDS_DB")
-                POSTGRES_PORT = int(os.getenv("RDS_PORT", 5432))
+                    st.image(cropped, caption="Detected Drone")
 
-                try:
-                    if RDS_SECRET_NAME:
-                        # EC2 production: fetch from Secrets Manager
-                        session = boto3.session.Session()
-                        client = session.client(service_name="secretsmanager", region_name=aws_region_name)
-                        secret_value = client.get_secret_value(SecretId=RDS_SECRET_NAME)
-                        secrets = json.loads(secret_value["SecretString"])
-                        POSTGRES_HOST = secrets["host"]
-                        POSTGRES_USER = secrets["username"]
-                        POSTGRES_PASS = secrets["password"]
-                        POSTGRES_DB = secrets["dbname"]
-                        POSTGRES_PORT = int(secrets.get("port", 5432))
+                    # =========================================
+                    # PostgreSQL Storage
+                    # =========================================
 
-                    if all([POSTGRES_HOST, POSTGRES_USER, POSTGRES_PASS, POSTGRES_DB]):
-                        conn = psycopg2.connect(
-                            host=POSTGRES_HOST,
-                            user=POSTGRES_USER,
-                            password=POSTGRES_PASS,
-                            database=POSTGRES_DB,
-                            port=POSTGRES_PORT
-                        )
-                        cursor = conn.cursor()
-                        create_table_query = """
-                        CREATE TABLE IF NOT EXISTS drone_image_metadata (
-                            id SERIAL PRIMARY KEY,
-                            user_id VARCHAR(255),
-                            s3_path TEXT,
-                            drone_type VARCHAR(50),
-                            drone_type_conf FLOAT,
-                            health_status VARCHAR(50),
-                            health_conf FLOAT,
-                            uploaded_at TIMESTAMP,
-                            processed_at TIMESTAMP,
-                            image_size_bytes BIGINT,
-                            image_format VARCHAR(10),
-                            model_version VARCHAR(100)
-                        );
-                        """
-                        cursor.execute(create_table_query)
-                        conn.commit()
+                    conn = get_postgres_connection()
 
-                        uploaded_at = datetime.now()
-                        processed_at = datetime.now()
-                        image_size_bytes = uploaded_file.size
-                        model_version_type = "YOLOv8-DroneType"
-                        model_version_health = "YOLOv8-DroneHealth"
+                    if conn:
 
-                        insert_query = """
-                        INSERT INTO drone_image_metadata
-                        (user_id, s3_path, drone_type, drone_type_conf, health_status, health_conf,
-                         uploaded_at, processed_at, image_size_bytes, image_format, model_version)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(insert_query, (
-                            user_id,
-                            s3_url,
-                            drone_type,
-                            type_conf,
-                            health_status,
-                            health_conf,
-                            uploaded_at,
-                            processed_at,
-                            image_size_bytes,
-                            file_ext.lower(),
-                            f"{model_version_type}/{model_version_health}"
-                        ))
-                        conn.commit()
-                        cursor.close()
-                        conn.close()
-                        st.success("Metadata stored successfully in PostgreSQL!")
+                        try:
+                            cursor = conn.cursor()
+
+                            cursor.execute("""
+                                CREATE TABLE IF NOT EXISTS drone_image_metadata(
+                                    id SERIAL PRIMARY KEY,
+                                    user_id VARCHAR(255),
+                                    s3_path TEXT,
+                                    drone_type VARCHAR(50),
+                                    drone_type_conf FLOAT,
+                                    health_status VARCHAR(50),
+                                    health_conf FLOAT,
+                                    uploaded_at TIMESTAMP,
+                                    processed_at TIMESTAMP,
+                                    image_size_bytes BIGINT,
+                                    image_format VARCHAR(10),
+                                    model_version VARCHAR(100)
+                                )
+                            """)
+
+                            conn.commit()
+
+                            cursor.execute("""
+                                INSERT INTO drone_image_metadata
+                                (user_id,s3_path,drone_type,drone_type_conf,
+                                health_status,health_conf,uploaded_at,
+                                processed_at,image_size_bytes,image_format,model_version)
+                                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            """, (
+                                user_id,
+                                s3_url,
+                                drone_type,
+                                type_conf,
+                                health_status,
+                                health_conf,
+                                datetime.now(),
+                                datetime.now(),
+                                uploaded_file.size,
+                                uploaded_file.name.split(".")[-1],
+                                "YOLOv8 Production"
+                            ))
+
+                            conn.commit()
+                            cursor.close()
+                            conn.close()
+
+                            st.success("✅ Metadata Stored")
+
+                        except Exception as e:
+                            st.error(f"DB Insert Error: {e}")
 
                     else:
-                        st.warning("PostgreSQL metadata storage skipped: Missing DB credentials")
+                        st.warning("Metadata Storage Skipped")
 
-                except Exception as e:
-                    st.error(f"Error storing metadata: {e}")
+
 # =========================================
 # AI CHATBOT PAGE (CLEAN ARCHITECTURE)
 # =========================================
