@@ -30,16 +30,13 @@ sys.path.append(os.path.abspath("."))
 
 from agents.orchestrator import route_query
 
-import boto3
-
-# =====================================================
-# AWS Credential Safe Loader (Production Level)
-# =====================================================
+# ===============
+# AWS Credential 
+# ===============
 
 def get_aws_session():
 
     try:
-        # Try environment credentials first (.env)
         session = boto3.Session(
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY"),
             aws_secret_access_key=os.getenv("AWS_SECRET_KEY"),
@@ -56,7 +53,6 @@ def get_aws_session():
     except Exception:
 
         try:
-            # Fallback → IAM Role (EC2)
             session = boto3.Session()
             creds = session.get_credentials()
 
@@ -79,16 +75,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-import streamlit as st
-
-# =========================================
-# Sidebar Navigation - Modern Version
-# =========================================
+# ==================
+# Sidebar Navigation
+# ==================
 with st.sidebar:
     st.markdown("Aero AI")
     st.markdown("---")
 
-    # Define navigation items with icons
+    # Definition navigation items with icons
     nav_items = [
         ("Home", "Home"),
         ("ETA Prediction", "ETA Prediction"),
@@ -97,7 +91,6 @@ with st.sidebar:
         ("About Me", "About Me")
     ]
 
-    # Render radio buttons manually to include icons and custom CSS
     options = [item[0] for item in nav_items]
     page = st.radio(
         "Navigation",
@@ -115,56 +108,102 @@ with st.sidebar:
 # =========================================
 # Sidebar CSS Enhancements
 # =========================================
-st.markdown(
-    """
-    <style>
-    /* Sidebar background */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1e3a5f 0%, #0f1f33 100%);
-    }
+st.markdown("""
+<style>
 
-    /* Sidebar header */
-    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h4 {
-        color: #ffffff;
-    }
+/* =========================
+GLOBAL BACKGROUND
+========================= */
+.main {
+    background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+}
 
-    /* Radio buttons text */
-    [data-testid="stSidebar"] .stRadio [role="radiogroup"] div[role="radio"] label {
-        color: white !important;
-        font-size: 16px;
-        padding: 0.25rem 0.5rem;
-    }
+/* =========================
+CARD STYLE
+========================= */
+div[data-testid="stVerticalBlock"] {
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgba(255,255,255,0.05);
+}
 
-    /* Hover effect for radio buttons */
-    [data-testid="stSidebar"] .stRadio [role="radiogroup"] div[role="radio"]:hover label {
-        color: #60a5fa !important;
-        cursor: pointer;
-    }
+/* =========================
+METRIC CARDS
+========================= */
+[data-testid="stMetricValue"] {
+    font-size: 28px;
+    font-weight: bold;
+}
 
-    /* Selected radio button background */
-    [data-testid="stSidebar"] .stRadio [role="radiogroup"] div[aria-checked="true"] label {
-        background-color: rgba(96, 165, 250, 0.2);
-        border-radius: 8px;
-        padding-left: 0.5rem;
-    }
+[data-testid="stMetricDelta"] {
+    font-size: 14px;
+}
 
-    /* Footer text */
-    [data-testid="stSidebar"] .stMarkdown p, 
-    [data-testid="stSidebar"] .stMarkdown span {
-        color: #94a3b8 !important;
-        font-size: 0.875rem;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+/* =========================
+BUTTON STYLE
+========================= */
+.stButton>button {
+    width: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg,#2563eb,#3b82f6);
+    color: white;
+    font-weight: bold;
+    border: none;
+    padding: 12px;
+    transition: 0.3s;
+}
 
+.stButton>button:hover {
+    transform: scale(1.03);
+    box-shadow: 0px 0px 15px rgba(59,130,246,0.5);
+}
 
-# =========================================
+/* =========================
+SIDEBAR
+========================= */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg,#020617,#0f172a);
+}
+
+/* Sidebar text */
+[data-testid="stSidebar"] * {
+    color: #e2e8f0 !important;
+}
+
+/* =========================
+UPLOAD BOX
+========================= */
+[data-testid="stFileUploader"] {
+    border: 2px dashed #2563eb;
+    border-radius: 12px;
+    padding: 15px;
+}
+
+/* =========================
+CHATBOT MESSAGE STYLE
+========================= */
+[data-testid="stChatMessage"] {
+    background: rgba(255,255,255,0.05);
+    border-radius: 15px;
+    padding: 15px;
+}
+
+/* =========================
+HOVER EFFECTS
+========================= */
+.css-1d391kg:hover {
+    transform: translateY(-2px);
+    transition: 0.3s;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ====================
 # YOLO MODEL UTILITIES
-# =========================================
-
-
+# ====================
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "Model"
@@ -250,7 +289,6 @@ def run_yolo_inference(model, image, conf=0.4, iou=0.5):
 # HOME PAGE
 # =========================================
 if page == "Home":
-    # Hero Section
     st.markdown("""
     <div class="hero-section">
         <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">🚁 Aero AI</h1>
@@ -377,30 +415,53 @@ if page == "Home":
         st.markdown("""
         <div class="metric-card">
             <h4>Natural Language Processing</h4>
-            <p>Web Interface</p>
+            <p>AI Chatbot</p>
         </div>
         """, unsafe_allow_html=True)
     
     st.markdown("---")
     
-    # Model Performance
-    st.markdown("### 📈 Model Performance Metrics")
-    
+    st.markdown("## 📈 Model Performance & Model Selection")
+
+    st.markdown("""
+    <div style="
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:15px;
+    border:1px solid rgba(255,255,255,0.1);
+    ">
+    <h3>🏆 Best Model Selected: Gradient Boosting</h3>
+
+    <p>
+    ✅ MAE = <b>1.34 minutes</b> → Predictions are on average only 1.34 minutes off.<br>
+    ✅ RMSE = <b>1.71 minutes</b> → Most predictions are highly accurate.<br>
+    ✅ R² Score = <b>0.88</b> → Model explains <b>88%</b> of delivery time variance.
+    </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Table Comparison
     metrics_data = pd.DataFrame({
-        'Model': ['Gradient Boosting', 'Random Forest', 'Ridge Regression', 'Linear Regression', 'Lasso'],
-        'MAE (min)': [2.34, 2.89, 4.12, 4.56, 4.78],
-        'RMSE (min)': [3.12, 3.67, 5.23, 5.89, 6.12]
+        'Model': [
+            'Gradient Boosting',
+            'Random Forest',
+            'Ridge Regression',
+            'Linear Regression',
+            'Lasso Regression'
+        ],
+        'MAE (min)': [1.35, 1.36, 1.46, 1.46, 1.53],
+        'RMSE (min)': [1.73, 1.74, 1.82, 1.82, 1.93]
     })
-    
-    st.dataframe(metrics_data, width="stretch", hide_index=True)
-    
+
+    st.dataframe(metrics_data, use_container_width=True)
+
+    # Highlight Best Model Metrics
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Best Model", "Gradient Boosting", "✓ Selected")
-    with col2:
-        st.metric("MAE", "2.34 min", "-45% vs baseline")
-    with col3:
-        st.metric("RMSE", "3.12 min", "-52% vs baseline")
+
+    col1.metric("Best Model", "Gradient Boosting", "Selected ✅")
+    col2.metric("MAE", "1.34 min", "- Performance High Accuracy")
+    col3.metric("RMSE", "1.71 min", "- Low Prediction Error")
 
 # =========================================
 # ETA PREDICTION PAGE
@@ -559,9 +620,9 @@ elif page == "ETA Prediction":
         
         st.bar_chart(importance_data.set_index('Feature'))
 
-# =========================================
-# DRONE DETECTION PAGE WITH S3 + MySQL
-# =========================================
+# ===============================================
+# DRONE DETECTION PAGE WITH AWS S3 + AWS POSTGRES
+# ===============================================
 
 elif page == "Drone Detection":
 
@@ -625,7 +686,7 @@ elif page == "Drone Detection":
         type=["png", "jpg", "jpeg"]
     )
 
-    user_id = "user123"
+    user_id = "ArunSekar"
 
     if uploaded_file:
 
@@ -681,13 +742,13 @@ elif page == "Drone Detection":
                             if os.path.exists(temp_path):
                                 os.remove(temp_path)
 
-                            st.success("✅ Image uploaded to S3")
+                            st.success("Image uploaded to AWS S3")
 
                         except Exception as e:
                             st.error(f"S3 Upload Error: {e}")
 
                     else:
-                        st.warning("S3 Upload Skipped")
+                        st.warning("AWS S3 Upload Skipped")
 
                     # =========================================
                     # YOLO Detection
@@ -707,7 +768,7 @@ elif page == "Drone Detection":
                         cropped
                     )
 
-                    st.success("✅ Analysis Complete")
+                    st.success("Analysis Complete")
 
                     st.metric("Drone Type", drone_type)
                     st.metric("Type Confidence", f"{type_conf*100:.2f}%")
@@ -770,13 +831,13 @@ elif page == "Drone Detection":
                             cursor.close()
                             conn.close()
 
-                            st.success("✅ Metadata Stored")
+                            st.success("Drone image Metadata Stored")
 
                         except Exception as e:
                             st.error(f"DB Insert Error: {e}")
 
                     else:
-                        st.warning("Metadata Storage Skipped")
+                        st.warning("Drone image Metadata Storage Skipped")
 
 
 # =========================================
@@ -784,7 +845,7 @@ elif page == "Drone Detection":
 # =========================================
 elif page == "AI Chatbot":
 # ---------------------------------
-    st.set_page_config(page_title="Aero AI Assistant 🚁", layout="wide")
+    st.set_page_config(page_title="Aero-Drone AI Assistant 🚁", layout="wide")
 
     # ---------------------------------
     # Session State Initialization
@@ -795,16 +856,12 @@ elif page == "AI Chatbot":
     if "memory" not in st.session_state:
         st.session_state.memory = []
 
-    # ---------------------------------
-    # Welcome Message (Only Once)
-    # ---------------------------------
     if not st.session_state.messages:
-        welcome_msg = """Hello! I am your Aero AI Assistant 🚁  
+        welcome_msg = """Hello! I am your Aero- Drone AI Assistant 🚁  
 
     I can help with:
     • Drone health status  
-    • Damage / missing part count  
-    • Generate performance reports  
+    • Wing_Damage /Propeller_Crack / missing part count
     • Send reports via email  
 
     How can I assist you today?"""
@@ -835,21 +892,17 @@ elif page == "AI Chatbot":
                 except Exception as e:
                     response = f"⚠️ System Error: {str(e)}"
 
-            # Handle large or structured response
             if isinstance(response, list) and all(isinstance(r, dict) for r in response):
-                # If it's a list of dicts (tabular), show preview
-                st.markdown("📄 Full report sent via email. Showing preview:")
+                st.markdown("📄 Full report preview:")
                 df_preview = pd.DataFrame(response)
                 # Limit rows to 10 for display
                 st.dataframe(df_preview.head(10))
             else:
-                # Otherwise, normal text display
                 st.markdown(response)
 
         # Append assistant message to session
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-        # Update Memory (last 6 exchanges)
         st.session_state.memory.append({"role": "user", "content": prompt})
         st.session_state.memory.append({"role": "assistant", "content": response})
         if len(st.session_state.memory) > 12:
@@ -861,7 +914,7 @@ elif page == "AI Chatbot":
     if st.button("🗑️ Clear Conversation"):
         st.session_state.messages = []
         st.session_state.memory = []
-        st.experimental_rerun()
+        st.rerun()
 
 
 # =================================
